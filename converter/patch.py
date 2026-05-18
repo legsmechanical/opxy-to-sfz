@@ -1,3 +1,4 @@
+import math
 from dataclasses import dataclass, field
 from typing import Optional
 
@@ -27,16 +28,31 @@ class Preset:
     filter_envelope: dict
     fx_active: bool
     fx_params: list[int]
+    fx_type: str = "svf"
+    engine_volume: float = 0.0   # dB, 0.0 = unity (no change)
+    velocity_sensitivity: float = 100.0  # 0–100, maps to amp_veltrack
+    transpose: int = 0           # semitones
+    playmode: str = "poly"       # "poly", "mono", "legato"
+
+
+def _engine_volume_to_db(value: int) -> float:
+    """Convert OP-XY engine.volume (0–32767) to dB. 32767 = 0 dB (unity)."""
+    return 20.0 * math.log10(max(1, value) / 32767.0)
 
 
 def parse_patch(patch: dict) -> Preset:
     name = patch.get("name", "preset")
     envelope = patch.get("envelope", {})
     fx = patch.get("fx", {})
+    engine = patch.get("engine", {})
     regions = []
 
     for r in patch.get("regions", []):
-        loop_enabled = r.get("loop.enabled", False)
+        if "loop.enabled" in r:
+            loop_enabled = bool(r["loop.enabled"])
+        else:
+            loop_enabled = int(r.get("loop.start", 0)) > 0
+
         loop_on_release = r.get("loop.onrelease", True)
         if not loop_enabled:
             loop_mode = "no_loop"
@@ -62,6 +78,18 @@ def parse_patch(patch: dict) -> Preset:
             )
         )
 
+    raw_vol = engine.get("volume")
+    engine_volume = _engine_volume_to_db(raw_vol) if raw_vol is not None else 0.0
+
+    raw_vel = engine.get("velocity.sensitivity")
+    velocity_sensitivity = (raw_vel / 32767.0) * 100.0 if raw_vel is not None else 100.0
+
+    octave = int(patch.get("octave", 0))
+    engine_transpose = int(engine.get("transpose", 0))
+    transpose = engine_transpose + octave * 12
+
+    playmode = engine.get("playmode", "poly")
+
     return Preset(
         name=name,
         regions=regions,
@@ -69,4 +97,9 @@ def parse_patch(patch: dict) -> Preset:
         filter_envelope=envelope.get("filter", {}),
         fx_active=bool(fx.get("active", False)),
         fx_params=list(fx.get("params", [])),
+        fx_type=fx.get("type", "svf"),
+        engine_volume=engine_volume,
+        velocity_sensitivity=velocity_sensitivity,
+        transpose=transpose,
+        playmode=playmode,
     )

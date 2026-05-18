@@ -158,3 +158,80 @@ def test_sfz_loop_crossfade_omitted_when_zero():
 def test_sfz_loop_sustain_mode():
     sfz = generate_sfz(make_preset(loop=True, loop_sustain=True), trim_offsets={}, sample_rates={})
     assert "loop_mode=loop_sustain" in sfz
+
+
+def test_sfz_engine_volume_emitted():
+    preset = make_preset()
+    preset.engine_volume = -5.04
+    sfz = generate_sfz(preset, trim_offsets={}, sample_rates={})
+    assert "volume=-5.04" in sfz
+
+
+def test_sfz_engine_volume_zero_omitted():
+    sfz = generate_sfz(make_preset(), trim_offsets={}, sample_rates={})
+    global_section = sfz.split("<region>")[0]
+    assert "volume=" not in global_section
+
+
+def test_sfz_amp_veltrack_emitted():
+    preset = make_preset()
+    preset.velocity_sensitivity = 60.0
+    sfz = generate_sfz(preset, trim_offsets={}, sample_rates={})
+    assert "amp_veltrack=60.0" in sfz
+
+
+def test_sfz_amp_veltrack_100_omitted():
+    sfz = generate_sfz(make_preset(), trim_offsets={}, sample_rates={})
+    assert "amp_veltrack=" not in sfz
+
+
+def test_sfz_transpose_emitted():
+    preset = make_preset()
+    preset.transpose = 3
+    sfz = generate_sfz(preset, trim_offsets={}, sample_rates={})
+    assert "transpose=3" in sfz
+
+
+def test_sfz_transpose_zero_omitted():
+    sfz = generate_sfz(make_preset(), trim_offsets={}, sample_rates={})
+    assert "transpose=" not in sfz
+
+
+def test_sfz_polyphony_mono():
+    preset = make_preset()
+    preset.playmode = "mono"
+    sfz = generate_sfz(preset, trim_offsets={}, sample_rates={})
+    assert "polyphony=1" in sfz
+
+
+def test_sfz_polyphony_poly_omitted():
+    sfz = generate_sfz(make_preset(), trim_offsets={}, sample_rates={})
+    assert "polyphony=" not in sfz
+
+
+def test_sfz_fil_type_ladder():
+    preset = make_preset(fx_active=True)
+    preset.fx_type = "ladder"
+    sfz = generate_sfz(preset, trim_offsets={}, sample_rates={})
+    assert "fil_type=lpf_4p" in sfz
+
+
+def test_sfz_fil_type_z_hipass():
+    preset = make_preset(fx_active=True)
+    preset.fx_type = "z_hipass"
+    sfz = generate_sfz(preset, trim_offsets={}, sample_rates={})
+    assert "fil_type=hpf_2p" in sfz
+
+
+def test_sfz_fil_type_z_lowpass():
+    preset = make_preset(fx_active=True)
+    preset.fx_type = "z_lowpass"
+    sfz = generate_sfz(preset, trim_offsets={}, sample_rates={})
+    assert "fil_type=lpf_1p" in sfz
+
+
+def test_sfz_fil_type_svf_default():
+    preset = make_preset(fx_active=True)
+    preset.fx_type = "svf"
+    sfz = generate_sfz(preset, trim_offsets={}, sample_rates={})
+    assert "fil_type=lpf_2p" in sfz

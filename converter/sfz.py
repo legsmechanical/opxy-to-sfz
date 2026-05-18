@@ -7,9 +7,15 @@ from .patch import Preset
 CUTOFF_MIN_HZ = 20.0
 CUTOFF_MAX_HZ = 20000.0
 
+# OP-XY fx.type → SFZ fil_type
+_FX_TYPE_TO_FIL_TYPE = {
+    "svf": "lpf_2p",      # State Variable Filter (2-pole LP)
+    "ladder": "lpf_4p",   # Moog ladder (4-pole LP)
+    "z_lowpass": "lpf_1p", # Z-plane lowpass (1-pole)
+    "z_hipass": "hpf_2p", # Z-plane highpass (2-pole)
+}
 
-# Best-effort mapping: OP-XY SVF params[0] → Hz (log scale 20–20000 Hz),
-# params[2] → resonance dB (linear 0–40 dB). OP-XY param ranges are 0–32767.
+
 def _opxy_to_cutoff_hz(value: int) -> float:
     return CUTOFF_MIN_HZ * (CUTOFF_MAX_HZ / CUTOFF_MIN_HZ) ** (value / 32767.0)
 
@@ -23,15 +29,22 @@ def generate_sfz(
     trim_offsets: dict[str, int],
     sample_rates: dict[str, int],
 ) -> str:
-    """
-    Generate SFZ text for a preset.
-    trim_offsets maps sample filename -> leading frames trimmed.
-    sample_rates maps sample filename -> sample rate (Hz), used to convert
-    loop_crossfade frames to seconds.
-    """
     lines: list[str] = []
 
     lines.append("<global>")
+
+    if preset.engine_volume != 0.0:
+        lines.append(f"volume={preset.engine_volume:.2f}")
+
+    if preset.velocity_sensitivity != 100.0:
+        lines.append(f"amp_veltrack={preset.velocity_sensitivity:.1f}")
+
+    if preset.transpose != 0:
+        lines.append(f"transpose={preset.transpose}")
+
+    if preset.playmode in ("mono", "legato"):
+        lines.append("polyphony=1")
+
     amp = convert_amp_envelope(preset.amp_envelope)
     for k, v in amp.items():
         lines.append(f"{k}={v}")
@@ -39,9 +52,10 @@ def generate_sfz(
     if preset.fx_active and len(preset.fx_params) >= 3:
         cutoff = _opxy_to_cutoff_hz(preset.fx_params[0])
         resonance = _opxy_to_resonance_db(preset.fx_params[2])
+        fil_type = _FX_TYPE_TO_FIL_TYPE.get(preset.fx_type, "lpf_2p")
         lines.append(f"cutoff={cutoff:.1f}")
         lines.append(f"resonance={resonance:.1f}")
-        lines.append("fil_type=lpf_2p")
+        lines.append(f"fil_type={fil_type}")
         fil = convert_filter_envelope(preset.filter_envelope)
         for k, v in fil.items():
             lines.append(f"{k}={v}")
@@ -79,13 +93,6 @@ def generate_sfz(
 
 
 def build_zip(preset: Preset, sfz_text: str, wav_map: dict[str, bytes]) -> bytes:
-    """
-    Package SFZ text + WAV bytes into a ZIP.
-    Layout:
-      PresetName.sfz
-      PresetName/sample_60.wav
-      ...
-    """
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
         zf.writestr(f"{preset.name}.sfz", sfz_text)

@@ -121,3 +121,87 @@ def test_loop_onrelease_true_gives_loop_continuous():
     patch = {**MINIMAL_PATCH, "regions": [{**MINIMAL_PATCH["regions"][0], "loop.onrelease": True}]}
     region = parse_patch(patch).regions[0]
     assert region.loop_mode == "loop_continuous"
+
+
+def test_loop_inferred_from_loop_start_without_loop_enabled():
+    region_data = {k: v for k, v in MINIMAL_PATCH["regions"][0].items() if k != "loop.enabled"}
+    region_data["loop.start"] = 100
+    region_data["loop.end"] = 5000
+    patch = {**MINIMAL_PATCH, "regions": [region_data]}
+    region = parse_patch(patch).regions[0]
+    assert region.loop_mode == "loop_continuous"
+    assert region.loop_start == 100
+    assert region.loop_end == 5000
+
+
+def test_no_loop_start_means_no_loop():
+    region_data = {k: v for k, v in MINIMAL_PATCH["regions"][0].items() if k != "loop.enabled"}
+    region_data.pop("loop.start", None)
+    region_data.pop("loop.end", None)
+    patch = {**MINIMAL_PATCH, "regions": [region_data]}
+    region = parse_patch(patch).regions[0]
+    assert region.loop_mode == "no_loop"
+
+
+def test_engine_volume_parsed():
+    patch = {**MINIMAL_PATCH, "engine": {"volume": 32767}}
+    result = parse_patch(patch)
+    assert abs(result.engine_volume - 0.0) < 0.01  # 32767 = unity = 0 dB
+
+
+def test_engine_volume_attenuated():
+    import math
+    patch = {**MINIMAL_PATCH, "engine": {"volume": 18348}}
+    result = parse_patch(patch)
+    expected = 20.0 * math.log10(18348 / 32767)
+    assert abs(result.engine_volume - expected) < 0.01
+
+
+def test_engine_volume_default_when_absent():
+    result = parse_patch(MINIMAL_PATCH)
+    assert result.engine_volume == 0.0
+
+
+def test_velocity_sensitivity_parsed():
+    patch = {**MINIMAL_PATCH, "engine": {"velocity.sensitivity": 16384}}
+    result = parse_patch(patch)
+    assert abs(result.velocity_sensitivity - 50.0) < 0.1
+
+
+def test_velocity_sensitivity_default_when_absent():
+    result = parse_patch(MINIMAL_PATCH)
+    assert result.velocity_sensitivity == 100.0
+
+
+def test_transpose_from_engine():
+    patch = {**MINIMAL_PATCH, "engine": {"transpose": 3}}
+    result = parse_patch(patch)
+    assert result.transpose == 3
+
+
+def test_transpose_includes_octave():
+    patch = {**MINIMAL_PATCH, "octave": 2, "engine": {"transpose": 1}}
+    result = parse_patch(patch)
+    assert result.transpose == 25  # 1 + 2*12
+
+
+def test_playmode_parsed():
+    patch = {**MINIMAL_PATCH, "engine": {"playmode": "mono"}}
+    result = parse_patch(patch)
+    assert result.playmode == "mono"
+
+
+def test_playmode_default_poly():
+    result = parse_patch(MINIMAL_PATCH)
+    assert result.playmode == "poly"
+
+
+def test_fx_type_parsed():
+    result = parse_patch(MINIMAL_PATCH)
+    assert result.fx_type == "svf"
+
+
+def test_fx_type_ladder():
+    patch = {**MINIMAL_PATCH, "fx": {**MINIMAL_PATCH["fx"], "type": "ladder"}}
+    result = parse_patch(patch)
+    assert result.fx_type == "ladder"
