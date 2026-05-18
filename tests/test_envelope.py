@@ -48,3 +48,9 @@ def test_convert_amp_envelope_attack_zero():
 def test_convert_filter_envelope_keys():
     result = convert_filter_envelope({"attack": 0, "decay": 16895, "release": 19968, "sustain": 16896})
     assert set(result.keys()) == {"fileg_attack", "fileg_decay", "fileg_sustain", "fileg_release"}
+
+def test_sustain_clamped_below_zero():
+    assert opxy_sustain_to_sfz_percent(-100) == pytest.approx(0.0)
+
+def test_sustain_clamped_above_max():
+    assert opxy_sustain_to_sfz_percent(40000) == pytest.approx(100.0)

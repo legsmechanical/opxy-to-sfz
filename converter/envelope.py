@@ -30,7 +30,8 @@ def opxy_to_release_seconds(value: int) -> float:
 
 def opxy_sustain_to_sfz_percent(value: int) -> float:
     """Converts OP-XY linear amplitude 0–32767 to SFZ sustain percent 0–100."""
-    return (value / 32767.0) * 100.0
+    clamped = max(0, min(32767, value))
+    return (clamped / 32767.0) * 100.0
 
 
 def convert_amp_envelope(amp: dict) -> dict:
