@@ -33,6 +33,9 @@ def generate_sfz(
     lines: list[str] = []
 
     lines.append("<global>")
+    # -8 dBFS keeps estimated voice_peak below schwung-sfz's 0.5 auto-gain threshold,
+    # allowing the per-preset gain knob to work.
+    lines.append("volume=-8")
 
     if preset.velocity_sensitivity != 100.0:
         lines.append(f"amp_veltrack={preset.velocity_sensitivity:.1f}")

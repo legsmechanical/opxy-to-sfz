@@ -5,7 +5,7 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import Response
 from fastapi.staticfiles import StaticFiles
 
-from converter.audio import normalize_preset_wavs, trim_silence
+from converter.audio import trim_silence
 from converter.patch import parse_patch
 from converter.sfz import build_zip, generate_sfz
 
@@ -49,8 +49,6 @@ async def convert(files: list[UploadFile] = File(...), preset_name: str = Form(d
         sample_rates[filename] = sample_rate
 
     preset.regions = [r for r in preset.regions if r.sample not in skipped]
-
-    trimmed_wavs = normalize_preset_wavs(trimmed_wavs)
 
     sfz_text = generate_sfz(preset, trim_offsets, sample_rates)
     zip_bytes = build_zip(preset, sfz_text, trimmed_wavs)
