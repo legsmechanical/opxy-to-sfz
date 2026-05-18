@@ -13,6 +13,7 @@ class Region:
     loop_mode: str
     loop_start: Optional[int]
     loop_end: Optional[int]
+    loop_crossfade: int
     offset: int
     end: Optional[int]
     direction: str
@@ -36,6 +37,13 @@ def parse_patch(patch: dict) -> Preset:
 
     for r in patch.get("regions", []):
         loop_enabled = r.get("loop.enabled", False)
+        loop_on_release = r.get("loop.onrelease", True)
+        if not loop_enabled:
+            loop_mode = "no_loop"
+        elif loop_on_release:
+            loop_mode = "loop_continuous"
+        else:
+            loop_mode = "loop_sustain"
         regions.append(
             Region(
                 sample=r["sample"],
@@ -44,9 +52,10 @@ def parse_patch(patch: dict) -> Preset:
                 hikey=r.get("hikey", 127),
                 tune=r.get("tune", 0),
                 volume=float(r.get("gain", 0.0)),
-                loop_mode="loop_continuous" if loop_enabled else "no_loop",
+                loop_mode=loop_mode,
                 loop_start=r.get("loop.start") if loop_enabled else None,
                 loop_end=r.get("loop.end") if loop_enabled else None,
+                loop_crossfade=int(r.get("loop.crossfade", 0)) if loop_enabled else 0,
                 offset=r.get("sample.start", 0),
                 end=r.get("sample.end"),
                 direction="reverse" if r.get("reverse", False) else "forward",

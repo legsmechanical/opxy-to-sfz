@@ -66,11 +66,11 @@ def _find_trim_points(
     return int(nonsilent[0]), int(nonsilent[-1]) + 1
 
 
-def trim_silence(wav_data: bytes) -> tuple[bytes, int]:
+def trim_silence(wav_data: bytes) -> tuple[bytes, int, int]:
     """
     Trim leading and trailing silence from a WAV file.
-    Returns (trimmed_wav_bytes, leading_frames_trimmed).
+    Returns (trimmed_wav_bytes, leading_frames_trimmed, sample_rate).
     """
     samples, sample_rate, sample_width = load_wav(wav_data)
     start, end = _find_trim_points(samples)
-    return _encode_wav(samples[start:end], sample_rate, sample_width), start
+    return _encode_wav(samples[start:end], sample_rate, sample_width), start, sample_rate

@@ -5,7 +5,7 @@ from converter.patch import Preset, Region
 from converter.sfz import generate_sfz, build_zip
 
 
-def make_preset(name="TestPreset", fx_active=False, loop=False):
+def make_preset(name="TestPreset", fx_active=False, loop=False, loop_crossfade=0, loop_sustain=False):
     return Preset(
         name=name,
         regions=[
@@ -16,9 +16,10 @@ def make_preset(name="TestPreset", fx_active=False, loop=False):
                 hikey=72,
                 tune=0,
                 volume=-3.0,
-                loop_mode="loop_continuous" if loop else "no_loop",
+                loop_mode=("loop_sustain" if loop_sustain else "loop_continuous") if loop else "no_loop",
                 loop_start=100 if loop else None,
                 loop_end=5000 if loop else None,
+                loop_crossfade=loop_crossfade,
                 offset=0,
                 end=6000,
                 direction="forward",
@@ -32,12 +33,12 @@ def make_preset(name="TestPreset", fx_active=False, loop=False):
 
 
 def test_sfz_contains_global():
-    sfz = generate_sfz(make_preset(), trim_offsets={})
+    sfz = generate_sfz(make_preset(), trim_offsets={}, sample_rates={})
     assert "<global>" in sfz
 
 
 def test_sfz_contains_amp_envelope():
-    sfz = generate_sfz(make_preset(), trim_offsets={})
+    sfz = generate_sfz(make_preset(), trim_offsets={}, sample_rates={})
     assert "ampeg_attack=" in sfz
     assert "ampeg_decay=" in sfz
     assert "ampeg_sustain=" in sfz
@@ -45,24 +46,31 @@ def test_sfz_contains_amp_envelope():
 
 
 def test_sfz_contains_filter_envelope():
-    sfz = generate_sfz(make_preset(), trim_offsets={})
+    sfz = generate_sfz(make_preset(fx_active=True), trim_offsets={}, sample_rates={})
     assert "fileg_attack=" in sfz
     assert "fileg_release=" in sfz
+    assert "fileg_depth=3600" in sfz
+    assert "fil_type=lpf_2p" in sfz
+
+
+def test_sfz_no_filter_envelope_when_fx_inactive():
+    sfz = generate_sfz(make_preset(fx_active=False), trim_offsets={}, sample_rates={})
+    assert "fileg_attack=" not in sfz
 
 
 def test_sfz_no_cutoff_when_fx_inactive():
-    sfz = generate_sfz(make_preset(fx_active=False), trim_offsets={})
+    sfz = generate_sfz(make_preset(fx_active=False), trim_offsets={}, sample_rates={})
     assert "cutoff=" not in sfz
 
 
 def test_sfz_cutoff_when_fx_active():
-    sfz = generate_sfz(make_preset(fx_active=True), trim_offsets={})
+    sfz = generate_sfz(make_preset(fx_active=True), trim_offsets={}, sample_rates={})
     assert "cutoff=" in sfz
     assert "resonance=" in sfz
 
 
 def test_sfz_region_opcodes():
-    sfz = generate_sfz(make_preset(), trim_offsets={})
+    sfz = generate_sfz(make_preset(), trim_offsets={}, sample_rates={})
     assert "<region>" in sfz
     assert "sample=TestPreset/sample_60.wav" in sfz
     assert "pitch_keycenter=60" in sfz
@@ -73,7 +81,7 @@ def test_sfz_region_opcodes():
 
 
 def test_sfz_loop_opcodes():
-    sfz = generate_sfz(make_preset(loop=True), trim_offsets={})
+    sfz = generate_sfz(make_preset(loop=True), trim_offsets={}, sample_rates={})
     assert "loop_mode=loop_continuous" in sfz
     assert "loop_start=100" in sfz
     assert "loop_end=5000" in sfz
@@ -83,13 +91,14 @@ def test_sfz_loop_points_adjusted_for_trim():
     sfz = generate_sfz(
         make_preset(loop=True),
         trim_offsets={"sample_60.wav": 10},
+        sample_rates={},
     )
     assert "loop_start=90" in sfz
     assert "loop_end=4990" in sfz
 
 
 def test_sfz_sample_path_uses_subdirectory():
-    sfz = generate_sfz(make_preset(name="MyPreset"), trim_offsets={})
+    sfz = generate_sfz(make_preset(name="MyPreset"), trim_offsets={}, sample_rates={})
     assert "sample=MyPreset/sample_60.wav" in sfz
 
 
@@ -111,22 +120,41 @@ def test_build_zip_sfz_content():
 
 
 def test_sfz_end_adjusted_for_trim():
-    sfz = generate_sfz(make_preset(), trim_offsets={"sample_60.wav": 10})
+    sfz = generate_sfz(make_preset(), trim_offsets={"sample_60.wav": 10}, sample_rates={})
     assert "end=5990" in sfz  # 6000 - 10
 
 
 def test_sfz_end_clamped_to_zero():
-    sfz = generate_sfz(make_preset(), trim_offsets={"sample_60.wav": 9999})
+    sfz = generate_sfz(make_preset(), trim_offsets={"sample_60.wav": 9999}, sample_rates={})
     assert "end=0" in sfz
 
 
 def test_sfz_reverse_direction():
     preset = make_preset()
     preset.regions[0].direction = "reverse"
-    sfz = generate_sfz(preset, trim_offsets={})
+    sfz = generate_sfz(preset, trim_offsets={}, sample_rates={})
     assert "direction=reverse" in sfz
 
 
 def test_sfz_tune_zero_omitted():
-    sfz = generate_sfz(make_preset(), trim_offsets={})
+    sfz = generate_sfz(make_preset(), trim_offsets={}, sample_rates={})
     assert "tune=" not in sfz
+
+
+def test_sfz_loop_crossfade_emitted():
+    sfz = generate_sfz(
+        make_preset(loop=True, loop_crossfade=441),
+        trim_offsets={},
+        sample_rates={"sample_60.wav": 22050},
+    )
+    assert "loop_crossfade=0.0200" in sfz
+
+
+def test_sfz_loop_crossfade_omitted_when_zero():
+    sfz = generate_sfz(make_preset(loop=True, loop_crossfade=0), trim_offsets={}, sample_rates={})
+    assert "loop_crossfade=" not in sfz
+
+
+def test_sfz_loop_sustain_mode():
+    sfz = generate_sfz(make_preset(loop=True, loop_sustain=True), trim_offsets={}, sample_rates={})
+    assert "loop_mode=loop_sustain" in sfz

@@ -18,11 +18,16 @@ def _opxy_to_resonance_db(value: int) -> float:
     return (value / 32767.0) * 40.0
 
 
-def generate_sfz(preset: Preset, trim_offsets: dict[str, int]) -> str:
+def generate_sfz(
+    preset: Preset,
+    trim_offsets: dict[str, int],
+    sample_rates: dict[str, int],
+) -> str:
     """
     Generate SFZ text for a preset.
-    trim_offsets maps sample filename -> number of leading frames trimmed,
-    so loop/offset indices can be adjusted.
+    trim_offsets maps sample filename -> leading frames trimmed.
+    sample_rates maps sample filename -> sample rate (Hz), used to convert
+    loop_crossfade frames to seconds.
     """
     lines: list[str] = []
 
@@ -30,20 +35,23 @@ def generate_sfz(preset: Preset, trim_offsets: dict[str, int]) -> str:
     amp = convert_amp_envelope(preset.amp_envelope)
     for k, v in amp.items():
         lines.append(f"{k}={v}")
-    fil = convert_filter_envelope(preset.filter_envelope)
-    for k, v in fil.items():
-        lines.append(f"{k}={v}")
 
     if preset.fx_active and len(preset.fx_params) >= 3:
         cutoff = _opxy_to_cutoff_hz(preset.fx_params[0])
         resonance = _opxy_to_resonance_db(preset.fx_params[2])
         lines.append(f"cutoff={cutoff:.1f}")
         lines.append(f"resonance={resonance:.1f}")
+        lines.append("fil_type=lpf_2p")
+        fil = convert_filter_envelope(preset.filter_envelope)
+        for k, v in fil.items():
+            lines.append(f"{k}={v}")
+        lines.append("fileg_depth=3600")
 
     lines.append("")
 
     for region in preset.regions:
         trim = trim_offsets.get(region.sample, 0)
+        sr = sample_rates.get(region.sample, 22050)
         lines.append("<region>")
         lines.append(f"sample={preset.name}/{region.sample}")
         lines.append(f"pitch_keycenter={region.pitch_keycenter}")
@@ -57,6 +65,8 @@ def generate_sfz(preset: Preset, trim_offsets: dict[str, int]) -> str:
             lines.append(f"loop_start={max(0, region.loop_start - trim)}")
         if region.loop_end is not None:
             lines.append(f"loop_end={max(0, region.loop_end - trim)}")
+        if region.loop_crossfade > 0:
+            lines.append(f"loop_crossfade={region.loop_crossfade / sr:.4f}")
         if region.offset and region.offset - trim > 0:
             lines.append(f"offset={region.offset - trim}")
         if region.end is not None:

@@ -29,6 +29,7 @@ async def convert(files: list[UploadFile] = File(...), preset_name: str = Form(d
 
     trimmed_wavs: dict[str, bytes] = {}
     trim_offsets: dict[str, int] = {}
+    sample_rates: dict[str, int] = {}
     skipped: set[str] = set()
 
     for region in preset.regions:
@@ -38,17 +39,18 @@ async def convert(files: list[UploadFile] = File(...), preset_name: str = Form(d
             skipped.add(filename)
             continue
         try:
-            trimmed, leading = trim_silence(wav_files[filename])
+            trimmed, leading, sample_rate = trim_silence(wav_files[filename])
         except Exception as exc:
             logger.warning("Could not process %s in preset %s: %s", filename, preset.name, exc)
             skipped.add(filename)
             continue
         trimmed_wavs[filename] = trimmed
         trim_offsets[filename] = leading
+        sample_rates[filename] = sample_rate
 
     preset.regions = [r for r in preset.regions if r.sample not in skipped]
 
-    sfz_text = generate_sfz(preset, trim_offsets)
+    sfz_text = generate_sfz(preset, trim_offsets, sample_rates)
     zip_bytes = build_zip(preset, sfz_text, trimmed_wavs)
 
     return Response(

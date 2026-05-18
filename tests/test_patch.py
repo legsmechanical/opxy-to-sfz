@@ -57,6 +57,7 @@ def test_region_fields():
     assert region.loop_mode == "loop_continuous"
     assert region.loop_start == 100
     assert region.loop_end == 5000
+    assert region.loop_crossfade == 0
     assert region.offset == 0
     assert region.end == 6000
     assert region.direction == "forward"
@@ -96,3 +97,27 @@ def test_missing_name_defaults():
     patch = {k: v for k, v in MINIMAL_PATCH.items() if k != "name"}
     result = parse_patch(patch)
     assert result.name == "preset"
+
+
+def test_loop_crossfade_parsed():
+    patch = {**MINIMAL_PATCH, "regions": [{**MINIMAL_PATCH["regions"][0], "loop.crossfade": 441}]}
+    region = parse_patch(patch).regions[0]
+    assert region.loop_crossfade == 441
+
+
+def test_loop_crossfade_zero_when_loop_disabled():
+    patch = {**MINIMAL_PATCH, "regions": [{**MINIMAL_PATCH["regions"][0], "loop.enabled": False, "loop.crossfade": 441}]}
+    region = parse_patch(patch).regions[0]
+    assert region.loop_crossfade == 0
+
+
+def test_loop_onrelease_false_gives_loop_sustain():
+    patch = {**MINIMAL_PATCH, "regions": [{**MINIMAL_PATCH["regions"][0], "loop.onrelease": False}]}
+    region = parse_patch(patch).regions[0]
+    assert region.loop_mode == "loop_sustain"
+
+
+def test_loop_onrelease_true_gives_loop_continuous():
+    patch = {**MINIMAL_PATCH, "regions": [{**MINIMAL_PATCH["regions"][0], "loop.onrelease": True}]}
+    region = parse_patch(patch).regions[0]
+    assert region.loop_mode == "loop_continuous"
