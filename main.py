@@ -1,5 +1,5 @@
 import json
-import io
+import logging
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import Response
@@ -8,6 +8,8 @@ from fastapi.staticfiles import StaticFiles
 from converter.audio import trim_silence
 from converter.patch import parse_patch
 from converter.sfz import build_zip, generate_sfz
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
@@ -23,7 +25,6 @@ async def convert(files: list[UploadFile] = File(...)):
 
     wav_files = {f.filename: await f.read() for f in files if f.filename.endswith(".wav")}
 
-    warnings: list[str] = []
     trimmed_wavs: dict[str, bytes] = {}
     trim_offsets: dict[str, int] = {}
     skipped: set[str] = set()
@@ -31,13 +32,13 @@ async def convert(files: list[UploadFile] = File(...)):
     for region in preset.regions:
         filename = region.sample
         if filename not in wav_files:
-            warnings.append(f"Missing sample: {filename}")
+            logger.warning("Missing sample %s in preset %s", filename, preset.name)
             skipped.add(filename)
             continue
         try:
             trimmed, leading = trim_silence(wav_files[filename])
         except Exception as exc:
-            warnings.append(f"Could not process {filename}: {exc}")
+            logger.warning("Could not process %s in preset %s: %s", filename, preset.name, exc)
             skipped.add(filename)
             continue
         trimmed_wavs[filename] = trimmed
