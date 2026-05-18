@@ -21,11 +21,11 @@ def load_wav(data: bytes) -> tuple[np.ndarray, int, int]:
     if sample_width == 2:
         dtype = np.int16
     elif sample_width == 3:
-        # Promote 24-bit to 32-bit
-        padded = bytearray()
-        for i in range(0, len(raw), 3):
-            padded += b"\x00" + raw[i : i + 3]
-        raw = bytes(padded)
+        # Promote 24-bit to 32-bit with numpy (zero-fill LSB)
+        arr = np.frombuffer(raw, dtype=np.uint8).reshape(-1, 3)
+        padded = np.zeros((len(arr), 4), dtype=np.uint8)
+        padded[:, 1:] = arr  # bytes 1-3 get the 24-bit data; byte 0 stays 0
+        raw = padded.tobytes()
         dtype = np.int32
     else:
         raise ValueError(f"Unsupported sample width: {sample_width} bytes")
