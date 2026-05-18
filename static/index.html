@@ -150,8 +150,11 @@
     downloadAllBtn.onclick = async () => {
       downloadAllBtn.disabled = true;
       const zip = new JSZip();
-      for (const [name, blob] of convertedBlobs) {
-        zip.file(`${name}.zip`, blob);
+      for (const [, blob] of convertedBlobs) {
+        const inner = await JSZip.loadAsync(blob);
+        inner.forEach((path, file) => {
+          zip.file(path, file.async('arraybuffer'));
+        });
       }
       const content = await zip.generateAsync({ type: 'blob' });
       triggerDownload(content, 'opxy-sfz-presets.zip');
