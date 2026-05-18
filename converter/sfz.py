@@ -7,6 +7,7 @@ from .patch import Preset
 CUTOFF_MIN_HZ = 20.0
 CUTOFF_MAX_HZ = 20000.0
 
+# params[0] = cutoff, params[1] = resonance, params[2] = drive/mode (type-dependent)
 # OP-XY fx.type → SFZ fil_type
 _FX_TYPE_TO_FIL_TYPE = {
     "svf": "lpf_2p",      # State Variable Filter (2-pole LP)
@@ -49,9 +50,9 @@ def generate_sfz(
     for k, v in amp.items():
         lines.append(f"{k}={v}")
 
-    if preset.fx_active and len(preset.fx_params) >= 3:
+    if preset.fx_active and len(preset.fx_params) >= 2:
         cutoff = _opxy_to_cutoff_hz(preset.fx_params[0])
-        resonance = _opxy_to_resonance_db(preset.fx_params[2])
+        resonance = _opxy_to_resonance_db(preset.fx_params[1])
         fil_type = _FX_TYPE_TO_FIL_TYPE.get(preset.fx_type, "lpf_2p")
         lines.append(f"cutoff={cutoff:.1f}")
         lines.append(f"resonance={resonance:.1f}")
