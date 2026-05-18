@@ -1,7 +1,7 @@
 import json
 import logging
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import Response
 from fastapi.staticfiles import StaticFiles
 
@@ -15,13 +15,15 @@ app = FastAPI()
 
 
 @app.post("/convert")
-async def convert(files: list[UploadFile] = File(...)):
+async def convert(files: list[UploadFile] = File(...), preset_name: str = Form(default="")):
     patch_file = next((f for f in files if f.filename == "patch.json"), None)
     if patch_file is None:
         raise HTTPException(status_code=400, detail="No patch.json found in uploaded files")
 
     patch_json = json.loads(await patch_file.read())
     preset = parse_patch(patch_json)
+    if preset_name:
+        preset.name = preset_name
 
     wav_files = {f.filename: await f.read() for f in files if f.filename.endswith(".wav")}
 

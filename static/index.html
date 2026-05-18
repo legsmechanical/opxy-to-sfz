@@ -65,8 +65,11 @@
       e.preventDefault();
       dropZone.classList.remove('over');
       const items = [...e.dataTransfer.items].filter(i => i.kind === 'file');
-      for (const item of items) {
-        const handle = await item.getAsFileSystemHandle();
+      // Collect all handle promises synchronously before any await —
+      // DataTransferItem objects are invalidated after the first yield.
+      const handlePromises = items.map(item => item.getAsFileSystemHandle());
+      const handles = await Promise.all(handlePromises);
+      for (const handle of handles) {
         if (handle && handle.kind === 'directory') {
           await processPreset(handle);
         }
@@ -93,6 +96,7 @@
 
       setStatus(row, 'converting', 'Converting…');
       const formData = new FormData();
+      formData.append('preset_name', name.replace(/\.preset$/, ''));
       for (const file of files) {
         formData.append('files', file, file.name);
       }
