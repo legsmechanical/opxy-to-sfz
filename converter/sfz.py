@@ -34,9 +34,6 @@ def generate_sfz(
 
     lines.append("<global>")
 
-    if preset.engine_volume != 0.0:
-        lines.append(f"volume={preset.engine_volume:.2f}")
-
     if preset.velocity_sensitivity != 100.0:
         lines.append(f"amp_veltrack={preset.velocity_sensitivity:.1f}")
 

@@ -160,15 +160,12 @@ def test_sfz_loop_sustain_mode():
     assert "loop_mode=loop_sustain" in sfz
 
 
-def test_sfz_engine_volume_emitted():
+def test_sfz_engine_volume_not_emitted():
+    # engine_volume is parsed but intentionally not written to SFZ —
+    # normalization handles loudness at the WAV level instead
     preset = make_preset()
     preset.engine_volume = -5.04
     sfz = generate_sfz(preset, trim_offsets={}, sample_rates={})
-    assert "volume=-5.04" in sfz
-
-
-def test_sfz_engine_volume_zero_omitted():
-    sfz = generate_sfz(make_preset(), trim_offsets={}, sample_rates={})
     global_section = sfz.split("<region>")[0]
     assert "volume=" not in global_section
 

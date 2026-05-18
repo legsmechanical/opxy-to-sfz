@@ -74,3 +74,34 @@ def trim_silence(wav_data: bytes) -> tuple[bytes, int, int]:
     samples, sample_rate, sample_width = load_wav(wav_data)
     start, end = _find_trim_points(samples)
     return _encode_wav(samples[start:end], sample_rate, sample_width), start, sample_rate
+
+
+# -6 dBFS: just under xsynth_plugin's auto-gain threshold (voice_peak > 0.5 triggers
+# additional per-preset attenuation). Staying at or below 0.5 gets maximum loudness.
+NORMALIZE_TARGET_PEAK = 0.5
+
+
+def normalize_preset_wavs(wav_map: dict[str, bytes]) -> dict[str, bytes]:
+    """
+    Normalize all WAVs in a preset so the loudest peak across all samples reaches
+    NORMALIZE_TARGET_PEAK. Applies the same gain factor to every sample, preserving
+    relative dynamics between samples.
+    """
+    if not wav_map:
+        return wav_map
+
+    decoded = {name: load_wav(data) for name, data in wav_map.items()}
+
+    global_peak = max(
+        float(np.abs(samples).max())
+        for samples, _, _ in decoded.values()
+    )
+    if global_peak == 0.0:
+        return wav_map
+
+    gain = NORMALIZE_TARGET_PEAK / global_peak
+
+    return {
+        name: _encode_wav(np.clip(samples * gain, -1.0, 1.0), sr, sw)
+        for name, (samples, sr, sw) in decoded.items()
+    }
