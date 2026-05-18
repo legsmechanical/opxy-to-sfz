@@ -68,39 +68,45 @@ def test_convert_returns_zip(client):
     assert response.headers["content-type"] == "application/zip"
 
 
-def test_convert_zip_contains_sfz(client):
+def test_convert_zip_contains_dspreset(client):
     response = post_preset(client, preset_files())
     with zipfile.ZipFile(io.BytesIO(response.content)) as zf:
-        assert "TestPreset.sfz" in zf.namelist()
+        assert "TestPreset.dspreset" in zf.namelist()
 
 
-def test_convert_zip_contains_wav_in_subdirectory(client):
+def test_convert_zip_contains_wav_in_samples_directory(client):
     response = post_preset(client, preset_files())
     with zipfile.ZipFile(io.BytesIO(response.content)) as zf:
-        assert "TestPreset/sample_60.wav" in zf.namelist()
+        assert "Samples/sample_60.wav" in zf.namelist()
 
 
-def test_convert_sfz_has_envelope_opcodes(client):
+def test_convert_dspreset_has_envelope_knobs(client):
+    import xml.etree.ElementTree as ET
     response = post_preset(client, preset_files())
     with zipfile.ZipFile(io.BytesIO(response.content)) as zf:
-        sfz = zf.read("TestPreset.sfz").decode()
-    assert "ampeg_attack=" in sfz
-    assert "ampeg_sustain=" in sfz
+        xml = zf.read("TestPreset.dspreset").decode()
+    root = ET.fromstring(xml.strip())
+    labels = {k.get("label") for k in root.findall(".//labeled-knob")}
+    assert "Attack" in labels
+    assert "Sustain" in labels
 
 
-def test_convert_sfz_has_region_opcodes(client):
+def test_convert_dspreset_has_sample_mapping(client):
+    import xml.etree.ElementTree as ET
     response = post_preset(client, preset_files())
     with zipfile.ZipFile(io.BytesIO(response.content)) as zf:
-        sfz = zf.read("TestPreset.sfz").decode()
-    assert "pitch_keycenter=60" in sfz
-    assert "lokey=48" in sfz
-    assert "hikey=72" in sfz
+        xml = zf.read("TestPreset.dspreset").decode()
+    root = ET.fromstring(xml.strip())
+    sample = root.find(".//sample")
+    assert sample.get("rootNote") == "60"
+    assert sample.get("loNote") == "48"
+    assert sample.get("hiNote") == "72"
 
 
 def test_silence_is_trimmed(client):
     response = post_preset(client, preset_files(with_silence=True))
     with zipfile.ZipFile(io.BytesIO(response.content)) as zf:
-        wav_data = zf.read("TestPreset/sample_60.wav")
+        wav_data = zf.read("Samples/sample_60.wav")
     import wave
     with wave.open(io.BytesIO(wav_data)) as wf:
         n_frames = wf.getnframes()

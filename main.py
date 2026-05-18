@@ -6,8 +6,8 @@ from fastapi.responses import Response
 from fastapi.staticfiles import StaticFiles
 
 from converter.audio import trim_silence
+from converter.dspreset import build_dspreset_zip, generate_dspreset
 from converter.patch import parse_patch
-from converter.sfz import build_zip, generate_sfz
 
 logger = logging.getLogger(__name__)
 
@@ -50,8 +50,8 @@ async def convert(files: list[UploadFile] = File(...), preset_name: str = Form(d
 
     preset.regions = [r for r in preset.regions if r.sample not in skipped]
 
-    sfz_text = generate_sfz(preset, trim_offsets, sample_rates)
-    zip_bytes = build_zip(preset, sfz_text, trimmed_wavs)
+    dspreset_xml = generate_dspreset(preset, trim_offsets, sample_rates)
+    zip_bytes = build_dspreset_zip(preset, dspreset_xml, trimmed_wavs)
 
     return Response(
         content=zip_bytes,
