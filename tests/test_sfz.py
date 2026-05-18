@@ -108,3 +108,25 @@ def test_build_zip_sfz_content():
     with zipfile.ZipFile(io.BytesIO(zip_bytes)) as zf:
         content = zf.read("TestPreset.sfz").decode()
     assert content == sfz_text
+
+
+def test_sfz_end_adjusted_for_trim():
+    sfz = generate_sfz(make_preset(), trim_offsets={"sample_60.wav": 10})
+    assert "end=5990" in sfz  # 6000 - 10
+
+
+def test_sfz_end_clamped_to_zero():
+    sfz = generate_sfz(make_preset(), trim_offsets={"sample_60.wav": 9999})
+    assert "end=0" in sfz
+
+
+def test_sfz_reverse_direction():
+    preset = make_preset()
+    preset.regions[0].direction = "reverse"
+    sfz = generate_sfz(preset, trim_offsets={})
+    assert "direction=reverse" in sfz
+
+
+def test_sfz_tune_zero_omitted():
+    sfz = generate_sfz(make_preset(), trim_offsets={})
+    assert "tune=" not in sfz

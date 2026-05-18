@@ -8,6 +8,8 @@ CUTOFF_MIN_HZ = 20.0
 CUTOFF_MAX_HZ = 20000.0
 
 
+# Best-effort mapping: OP-XY SVF params[0] → Hz (log scale 20–20000 Hz),
+# params[2] → resonance dB (linear 0–40 dB). OP-XY param ranges are 0–32767.
 def _opxy_to_cutoff_hz(value: int) -> float:
     return CUTOFF_MIN_HZ * (CUTOFF_MAX_HZ / CUTOFF_MIN_HZ) ** (value / 32767.0)
 
@@ -58,7 +60,7 @@ def generate_sfz(preset: Preset, trim_offsets: dict[str, int]) -> str:
         if region.offset and region.offset - trim > 0:
             lines.append(f"offset={region.offset - trim}")
         if region.end is not None:
-            lines.append(f"end={region.end - trim}")
+            lines.append(f"end={max(0, region.end - trim)}")
         if region.direction == "reverse":
             lines.append("direction=reverse")
         lines.append("")
